@@ -78,3 +78,14 @@ kubectl patch deployment ingress-nginx-controller -n ingress-nginx --type json -
    ]}
 ]'
 ```
+# 5. Critical Fix: Admission Webhook (ทำทันทีหลังลง Ingress)
+```
+# 5.1 ลบ Validation Webhook Configuration
+kubectl delete validatingwebhookconfigurations ingress-nginx-admission
+
+# 5.2 ลบการเรียกใช้ Volume/Secret ที่ค้างคาใน Deployment
+kubectl patch deployment ingress-nginx-controller -n ingress-nginx --type json -p='[
+  {"op": "remove", "path": "/spec/template/spec/containers/0/volumeMounts/0"},
+  {"op": "remove", "path": "/spec/template/spec/volumes/0"}
+]'
+```
