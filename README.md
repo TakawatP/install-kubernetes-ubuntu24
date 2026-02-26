@@ -1,4 +1,5 @@
-# 1. OS Preparation (ทุก Node)
+## 1. OS Preparation (ทุก Node)
+### เตรียมระบบพื้นฐานให้พร้อมสำหรับ Kubernetes
 ```
 # 1.1 Update ระบบและลง Dependencies
 sudo apt update && sudo apt upgrade -y
@@ -32,7 +33,8 @@ containerd config default | sudo tee /etc/containerd/config.toml > /dev/null
 sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
 sudo systemctl restart containerd
 ```
-# 2. K8s Installation (ทุก Node)
+## 2. K8s Installation (ทุก Node)
+### ติดตั้งเครื่องมือหลักสำหรับ Kubernetes v1.31
 ```
 # 2.1 เพิ่ม Repository (v1.31)
 curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
@@ -43,7 +45,8 @@ sudo apt update
 sudo apt install -y kubelet kubeadm kubectl
 sudo apt-mark hold kubelet kubeadm kubectl
 ```
-# 3. Cluster Setup (Master-01 เท่านั้น)
+## 3. Cluster Setup (Master-01 เท่านั้น)
+### เริ่มรันระบบและจัดระเบียบ Node
 ```
 # 3.1 Initialize Cluster (ปรับ endpoint ตามชื่อเครื่อง)
 sudo kubeadm init --control-plane-endpoint "k8s-master-01" --pod-network-cidr=10.244.0.0/16
@@ -59,7 +62,8 @@ kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/
 # 3.4 ใส่ Taint ให้ Master (ห้าม Pod ทั่วไปมารันบนเครื่อง Master)
 kubectl taint nodes --all node-role.kubernetes.io/control-plane:NoSchedule --overwrite
 ```
-# 4. Ingress Controller Setup (Host Network Mode)
+## 4. Ingress Controller Setup (Host Network Mode)
+### ตั้งค่าให้ Ingress แสดงผลเลข ADDRESS เป็น IP ของโหนด (172.x.x.x)
 ```
 # 4.1 ติดตั้ง Ingress Controller
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
@@ -78,7 +82,8 @@ kubectl patch deployment ingress-nginx-controller -n ingress-nginx --type json -
    ]}
 ]'
 ```
-# 5. Critical Fix: Admission Webhook (ทำทันทีหลังลง Ingress)
+## 5. Critical Fix: Admission Webhook (ทำทันทีหลังลง Ingress)
+### ป้องกันปัญหา Pod ค้างสถานะ ContainerCreating เนื่องจากหา Secret ใบเซอร์ไม่เจอ
 ```
 # 5.1 ลบ Validation Webhook Configuration
 kubectl delete validatingwebhookconfigurations ingress-nginx-admission
@@ -88,4 +93,14 @@ kubectl patch deployment ingress-nginx-controller -n ingress-nginx --type json -
   {"op": "remove", "path": "/spec/template/spec/containers/0/volumeMounts/0"},
   {"op": "remove", "path": "/spec/template/spec/volumes/0"}
 ]'
+```
+## 6. Verification (ตรวจสอบ)
+```
+ดู ADDRESS: kubectl get ingress -A
+(ต้องแสดงผลเป็น IP ของ Worker เช่น 172.x.x.x)
+
+ดูสถานะ Pod: kubectl get po -n ingress-nginx -o wide
+(IP ของ Pod ต้องตรงกับ IP ของ Node)
+
+ขยายระบบ (HA): kubectl scale deployment ingress-nginx-controller -n ingress-nginx --replicas=3
 ```
